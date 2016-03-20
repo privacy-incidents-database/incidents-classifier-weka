@@ -16,7 +16,7 @@ import weka.core.Instance;
 import weka.core.Instances;
 import weka.core.converters.ArffSaver;
 
-public class DatasetBuilder {
+public class CsvToArffConverter {
   
   private Instances data;
   
@@ -26,9 +26,9 @@ public class DatasetBuilder {
     String csvFilename = args[0];
     String arffFilename = args[1];
 
-    DatasetBuilder featureBldr = new DatasetBuilder();
-    featureBldr.buildDataset(csvFilename);
-    featureBldr.saveArff(arffFilename);
+    CsvToArffConverter converter = new CsvToArffConverter();
+    converter.buildDataset(csvFilename);
+    converter.saveArff(arffFilename);
   }
 
   public void buildDataset(String csvFilename) throws IOException {
