@@ -2,12 +2,16 @@ package edu.ncsu.csc.privacyincidents;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.nio.charset.Charset;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Random;
 
 import weka.classifiers.Evaluation;
+import weka.classifiers.functions.SMO;
 import weka.core.Attribute;
 import weka.core.Instances;
 import weka.filters.Filter;
@@ -26,47 +30,54 @@ public class IncidentClassifier {
 
     Instances filteredData = filterData(data);
     
-    // create new instance of scheme
-    weka.classifiers.functions.SMO scheme = new weka.classifiers.functions.SMO();
-    // set options
-    scheme
+    System.out.println("# Attributes = " + filteredData.numAttributes());
+    
+    SMO smoClassifier = new weka.classifiers.functions.SMO();
+    smoClassifier
         .setOptions(weka.core.Utils
             .splitOptions("-C 1.0 -L 0.0010 -P 1.0E-12 -N 0 -V -1 -W 1 -K \"weka.classifiers.functions.supportVector.PolyKernel -C 250007 -E 1.0\""));
         
     Evaluation eval = new Evaluation(data);
     
-    eval.crossValidateModel(scheme, filteredData, 10, new Random(1));
+    eval.crossValidateModel(smoClassifier, filteredData, 10, new Random(1));
     
-    System.out.println(eval.pctCorrect() + ", " + eval.pctIncorrect());
+    System.out.println("Percent correct = " + eval.pctCorrect() + "; " + "Percent incorrect = "
+        + eval.pctIncorrect());
+    
+    double precisionSum = 0;
+    double recallSum = 0;
+    double fMeasureSum = 0;
+    
+    for (int i = 0; i < 2; i++) {
+      System.out.println("Class " + (i + 1));
+      System.out.println("Precision " + eval.precision(i));
+      precisionSum += eval.precision(i);
+      
+      System.out.println("Recall " + eval.recall(i));
+      recallSum += eval.recall(i);
+      
+      System.out.println("F-measure " + eval.fMeasure(i));
+      fMeasureSum += eval.fMeasure(i);
+    }
+    
+    System.out.println("Avg. Precision " + precisionSum / 2);
+    System.out.println("Avg. Recall " + recallSum / 2);
+    System.out.println("Avg. F-measure " + fMeasureSum / 2);
   }
 
   private static Instances filterData(Instances data) throws Exception {
+    List<String> stopWords = Files
+        .readAllLines(Paths.get(ClassLoader.getSystemResource("stopwords.txt").toURI()),
+            Charset.forName("utf-8"));
+    
     List<String> attributeNamesToFilter = new ArrayList<String>();
-    attributeNamesToFilter.add("nytimes.com");
-    attributeNamesToFilter.add("york");
-    attributeNamesToFilter.add("upgrad");
-    attributeNamesToFilter.add("explor");
-    attributeNamesToFilter.add("love");
-    attributeNamesToFilter.add("longer");
-    attributeNamesToFilter.add("no");
-    attributeNamesToFilter.add("browser");
-    attributeNamesToFilter.add("hear");
-    attributeNamesToFilter.add("support");
-    attributeNamesToFilter.add("internet");
-    attributeNamesToFilter.add("earlier");
-    attributeNamesToFilter.add("access");
-    attributeNamesToFilter.add("version");
-    attributeNamesToFilter.add("print");
-    attributeNamesToFilter.add("privaci");
-    attributeNamesToFilter.add("secur");
-    attributeNamesToFilter.add("headlin");
-    attributeNamesToFilter.add("edit");
-    attributeNamesToFilter.add("concern");
-    attributeNamesToFilter.add("page");
-    attributeNamesToFilter.add("pleas");
-    attributeNamesToFilter.add("email");
-    attributeNamesToFilter.add("articl");
-    attributeNamesToFilter.add("time");
+    for (String stopWord : stopWords) {
+      if (!stopWord.startsWith("%")) {
+        attributeNamesToFilter.add(stopWord);
+      }
+    }
+    
+    System.out.println("# Stop words = " + stopWords.size());
     
     Remove remove = new Remove();
 
