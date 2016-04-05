@@ -1,23 +1,15 @@
-package edu.ncsu.csc.privacyincidents;
+package edu.ncsu.csc.privacyincidents.classification;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.List;
 import java.util.Random;
 
+import edu.ncsu.csc.privacyincidents.util.StopWordsHandler;
 import weka.classifiers.Evaluation;
 import weka.classifiers.functions.SMO;
-import weka.core.Attribute;
 import weka.core.Instances;
-import weka.filters.Filter;
-import weka.filters.unsupervised.attribute.Remove;
 
-public class IncidentClassifier {
+public class PrivacySmoClassifier {
 
   public static void main(String[] args) throws Exception {
     String arffFilename = args[0];
@@ -28,7 +20,7 @@ public class IncidentClassifier {
 
     data.setClassIndex(data.numAttributes() - 1);
 
-    Instances filteredData = filterData(data);
+    Instances filteredData = StopWordsHandler.filterInstances(data);
     
     System.out.println("# Attributes = " + filteredData.numAttributes());
     
@@ -63,45 +55,5 @@ public class IncidentClassifier {
     System.out.println("Avg. Precision " + precisionSum / 2);
     System.out.println("Avg. Recall " + recallSum / 2);
     System.out.println("Avg. F-measure " + fMeasureSum / 2);
-  }
-
-  private static Instances filterData(Instances data) throws Exception {
-    List<String> stopWords = Files
-        .readAllLines(Paths.get(ClassLoader.getSystemResource("stopwords.txt").toURI()),
-            Charset.forName("utf-8"));
-    
-    List<String> attributeNamesToFilter = new ArrayList<String>();
-    for (String stopWord : stopWords) {
-      if (!stopWord.startsWith("%")) {
-        attributeNamesToFilter.add(stopWord);
-      }
-    }
-    
-    System.out.println("# Stop words = " + stopWords.size());
-    
-    Remove remove = new Remove();
-
-    @SuppressWarnings("unchecked")
-    Enumeration<Attribute> attributes = data.enumerateAttributes();
-    int i = 1;
-    StringBuffer attributeIndices = new StringBuffer();
-    while (attributes.hasMoreElements()) {
-      Attribute attribute = attributes.nextElement();
-      if (attributeNamesToFilter.contains(attribute.name())) {
-        attributeIndices.append(i + ",");
-      }
-      i++;
-    }
-    if (attributeIndices.length() > 0) {
-      // Remove last comma
-      attributeIndices.replace(attributeIndices.length() - 1, attributeIndices.length(), "");
-      remove.setAttributeIndices(attributeIndices.toString());
-    }
-
-    remove.setInputFormat(data);
-
-    Instances filteredData = Filter.useFilter(data, remove);
-
-    return filteredData;
   }
 }

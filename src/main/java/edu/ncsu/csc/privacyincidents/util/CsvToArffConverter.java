@@ -1,4 +1,4 @@
-package edu.ncsu.csc.privacyincidents;
+package edu.ncsu.csc.privacyincidents.util;
 
 import java.io.File;
 import java.io.FileReader;

@@ -1,27 +1,19 @@
-package edu.ncsu.csc.privacyincidents;
+package edu.ncsu.csc.privacyincidents.featureselection;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
-import java.nio.charset.Charset;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import com.google.common.base.Functions;
 import com.google.common.collect.ImmutableSortedMap;
 import com.google.common.collect.Ordering;
 
+import edu.ncsu.csc.privacyincidents.util.StopWordsHandler;
 import weka.classifiers.functions.SMO;
-import weka.core.Attribute;
 import weka.core.Instances;
-import weka.filters.Filter;
-import weka.filters.unsupervised.attribute.Remove;
 
-public class IncidentSmoClassifier {
+public class SmoFeatureSelector {
 
   public static void main(String[] args) throws Exception {
     String arffFilename = args[0];
@@ -32,7 +24,7 @@ public class IncidentSmoClassifier {
 
     data.setClassIndex(data.numAttributes() - 1);
 
-    Instances filteredData = filterData(data);
+    Instances filteredData = StopWordsHandler.filterInstances(data);
     
     SMO smoClassifier = new weka.classifiers.functions.SMO();
     smoClassifier
@@ -92,38 +84,5 @@ public class IncidentSmoClassifier {
         break;
       }
     }
-  }
-
-  private static Instances filterData(Instances data) throws Exception {
-    List<String> attributeNamesToFilter = new ArrayList<String>();
-    attributeNamesToFilter.addAll(Files.readAllLines(
-        Paths.get(ClassLoader.getSystemResource("stopwords.txt").toURI()),
-        Charset.forName("utf-8")));
-    System.out.println("# Stop words = " + attributeNamesToFilter.size());
-    
-    Remove remove = new Remove();
-
-    @SuppressWarnings("unchecked")
-    Enumeration<Attribute> attributes = data.enumerateAttributes();
-    int i = 1;
-    StringBuffer attributeIndices = new StringBuffer();
-    while (attributes.hasMoreElements()) {
-      Attribute attribute = attributes.nextElement();
-      if (attributeNamesToFilter.contains(attribute.name())) {
-        attributeIndices.append(i + ",");
-      }
-      i++;
-    }
-    if (attributeIndices.length() > 0) {
-      // Remove last comma
-      attributeIndices.replace(attributeIndices.length() - 1, attributeIndices.length(), "");
-      remove.setAttributeIndices(attributeIndices.toString());
-    }
-
-    remove.setInputFormat(data);
-
-    Instances filteredData = Filter.useFilter(data, remove);
-
-    return filteredData;
   }
 }

@@ -1,7 +1,8 @@
-nytimes.com;
+// These words were in the footer of many NYTimes articles
+nytimes.com
 york
 upgrad
-explor;
+explor
 love
 longer
 no
@@ -13,8 +14,6 @@ earlier
 access
 version
 print
-privaci
-secur
 headlin
 edit
 concern
@@ -23,3 +22,6 @@ pleas
 email
 articl
 time
+// These words must be excluded depending on the classifier being tested
+// privaci
+// secur 
