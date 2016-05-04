@@ -36,9 +36,9 @@ public class PrivacyNaiveClassifier extends Classifier {
   @Override
   public double classifyInstance(Instance instance) {
     if (instance.value(instance.attribute(privacyAttIndex)) > 0) {
-      return 1;
+      return 0;
     }
-    return 0;
+    return 1;
   }
   
   public static void main(String[] args) throws Exception {
