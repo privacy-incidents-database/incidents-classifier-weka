@@ -65,6 +65,14 @@ public class PrivacyNaiveClassifier extends Classifier {
     System.out.println("Percent correct = " + eval.pctCorrect() + "; " + "Percent incorrect = "
         + eval.pctIncorrect());
     
+    double[][] confusionMatrix = eval.confusionMatrix();
+    for (int i = 0; i < 2; i++) {
+      for (int j = 0; j < 2; j++) {
+        System.out.print(confusionMatrix[i][j] + "  ");
+      }
+      System.out.println();
+    }
+
     double precisionSum = 0;
     double recallSum = 0;
     double fMeasureSum = 0;
