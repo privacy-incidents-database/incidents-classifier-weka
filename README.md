@@ -10,25 +10,25 @@ Given the two files above, follow the steps below to run a classifier. The comma
 
 (1) Pick a training set. 
 
-java edu.ncsu.csc.privacyincidents.util.CsvTrainingSetSelector "/PathTo/training.csv" "/PathTo/training_1.csv" "0:195,4:38,3:77,1:40,2:40"
+`java edu.ncsu.csc.privacyincidents.util.CsvTrainingSetSelector "/PathTo/training.csv" "/PathTo/training_1.csv" "0:195,4:38,3:77,1:40,2:40"`
 
 The first argument is the path to the input file, second is the output file, and the third argument says how many instances to select for each articles e.g., for the argument above we want to select 195 articles of code 0, 38 articles for code 4, and so on.
 
 Note A: You can count the number of instances for each article code in the input file using the following shell command.
 
-awk -F, '{A[$2]++}END{for(i in A)print i,A[i]}' OFS=, training.csv | sort -t, -k2,2rn
+`awk -F, '{A[$2]++}END{for(i in A)print i,A[i]}' OFS=, training.csv | sort -t, -k2,2rn`
 
 Note B: For now, we are only training binary classifiers. So in the output file, "0" values are retained as "0", but all non-zero values will be written as "1."
 
 (2) Convert the csv file to arff file.
 
-java edu.ncsu.csc.privacyincidents.util.CsvToArffConverter /PathTo/training_1.csv /PathTo/training_1.arff
+`java edu.ncsu.csc.privacyincidents.util.CsvToArffConverter /PathTo/training_1.csv /PathTo/training_1.arff`
 
 (3) You can now use the arff file to train various classifiers on the GUI. The GUI is good for experimenting. We also have some classifiers within this project. These classifiers can be included in the automated pipeline.
 
 (4) All classifiers within this project can be instantiated from the following class, with appropriate arguments.
 
-java edu.ncsu.csc.privacyincidents.classification.PrivacyClassifier -c SMO -v=/PathTo/training_1.arff
+`java edu.ncsu.csc.privacyincidents.classification.PrivacyClassifier -c SMO -v=/PathTo/training_1.arff`
 
 The first argument following "-c" indicates the type of the classifier to use. The argument "-v" indicates that crossvalidation is to be performed and the argument following "-v" is the file to run crossvalidation on. See more details on the other argument types in the PrivacyClassifier class.
 
