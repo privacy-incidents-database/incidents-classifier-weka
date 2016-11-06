@@ -2,6 +2,8 @@ package edu.ncsu.csc.privacyincidents.classification.custom;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 import weka.classifiers.Classifier;
@@ -16,27 +18,29 @@ public class PrivacyNaiveClassifier extends Classifier {
   
   private Instances mInstances;
   
-  private int privacyAttIndex = -1; 
+  private List<Integer> privacyAttIndices = new ArrayList<Integer>(); 
   
   @Override
   public void buildClassifier(Instances data) throws Exception {
     mInstances = new Instances(data);
     for (int i = 0; i < mInstances.numAttributes(); i++) {
       Attribute att = mInstances.attribute(i);
-      if (att.name().equals("privaci")) {
-        privacyAttIndex = i;
+      if (att.name().contains("privac")) {
+        privacyAttIndices.add(i);
       }
     }
     
-    if (privacyAttIndex == -1) {
+    if (privacyAttIndices.size() == 0) {
       throw new  IllegalArgumentException("The input data does not contain a privacy attribute");
     }
   }
 
   @Override
   public double classifyInstance(Instance instance) {
-    if (instance.value(instance.attribute(privacyAttIndex)) > 0) {
-      return 0;
+    for (Integer privacyAttIndex : privacyAttIndices) {
+      if (instance.value(instance.attribute(privacyAttIndex)) > 0) {
+        return 0;
+      }
     }
     return 1;
   }
