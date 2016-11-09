@@ -181,6 +181,17 @@ public class PrivacyClassifier {
     
     return predictions;
   }
+  
+  public double runTrainingAndTesting(Instances trainingData, Instances testingData)
+      throws Exception {
+    Classifier classifier = getClassifier(mClassifierName);
+    classifier.buildClassifier(trainingData);
+
+    Evaluation eval = new Evaluation(trainingData);
+    eval.evaluateModel(classifier, testingData);
+    
+    return eval.pctCorrect();
+  }
 
   private Instances readArff(String[] arffFilenames) throws Exception {
     List<InputStream> inputStreams = new ArrayList<>();

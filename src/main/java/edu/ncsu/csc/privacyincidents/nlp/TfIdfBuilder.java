@@ -205,7 +205,7 @@ public class TfIdfBuilder implements AutoCloseable {
       sortedWords.addAll(tfIdf.columnKeySet());
       
       // Write header
-      out.print("fileID");
+      out.print("fileName");
       out.print("isPrivacy");
       for (String word : sortedWords) {
         out.print(word);
@@ -214,7 +214,7 @@ public class TfIdfBuilder implements AutoCloseable {
       
       // Write positive files
       for (Integer posFileId : mPositiveFilesMap.keySet()) {
-        out.print(posFileId);
+        out.print(mPositiveFilesMap.get(posFileId));
         out.print("0");
         for (String word : sortedWords) {
           Double tfIdfScore = tfIdf.get(posFileId, word);
@@ -228,7 +228,7 @@ public class TfIdfBuilder implements AutoCloseable {
       
       // Write negative files
       for (Integer negFileId : mNegativeFilesMap.keySet()) {
-        out.print(negFileId);
+        out.print(mNegativeFilesMap.get(negFileId));
         out.print("1");
         for (String word : sortedWords) {
           Double tfIdfScore = tfIdf.get(negFileId, word);

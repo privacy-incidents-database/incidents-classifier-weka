@@ -6,7 +6,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
-public class CheckForDuplicates {
+public class DuplicatesFinder {
   public static Set<String> listFilesForDirectory(final File directory) {
     if (!directory.isDirectory()) {
       throw new IllegalArgumentException(directory.getName() + " is not a directory");
