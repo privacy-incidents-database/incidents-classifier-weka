@@ -6,8 +6,11 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -71,9 +74,11 @@ public class CsvTrainingSetSelector2 {
             + " rows");
       }
 
-      // TODO Randomizing may be required here in future
+      List<Long> curClassIndicedInRandomOrder = new ArrayList<Long>(curClassIndices);
+      Collections.shuffle(curClassIndicedInRandomOrder);
+      
       int i = 0;
-      for (Long curIndex : curClassIndices) {
+      for (Long curIndex : curClassIndicedInRandomOrder) {
         rowIndicesToSelect.add(curIndex);
         if (++i >= classSize) {
           break;
