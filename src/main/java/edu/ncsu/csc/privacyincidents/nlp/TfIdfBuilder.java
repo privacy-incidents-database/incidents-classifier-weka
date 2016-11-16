@@ -175,7 +175,7 @@ public class TfIdfBuilder implements AutoCloseable {
         if (pos.startsWith("N") || pos.startsWith("J") || pos.startsWith("V")
             || pos.startsWith("R")) {
           String lemma = token.get(LemmaAnnotation.class);
-          words.add(lemma);
+          words.add(lemma.toLowerCase());
         }
       }
     }
