@@ -1,7 +1,9 @@
 package edu.ncsu.csc.privacyincidents.classification;
 
 import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.FileInputStream;
+import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.SequenceInputStream;
@@ -27,6 +29,7 @@ import weka.classifiers.functions.LibSVM;
 import weka.classifiers.functions.SMO;
 import weka.core.Instances;
 import weka.core.Range;
+import edu.ncsu.csc.privacyincidents.classification.custom.PrivacyNaiveClassifier;
 import edu.ncsu.csc.privacyincidents.util.StopWordsHandler;
 
 public class PrivacyClassifier {
@@ -39,9 +42,11 @@ public class PrivacyClassifier {
   private String[] testingFiles;
   private String[] crossValidationFiles;
   
+  private String outPredictionsFilename;
+  
   // TODO: Throw an exception when an invalid classifier is used
   private static enum PrivacyClassifierName {
-    SMO, LibSVM
+    NAIVE, SMO, LibSVM
   };
   
   private PrivacyClassifierName mClassifierName;
@@ -64,6 +69,10 @@ public class PrivacyClassifier {
         "name of the arff file for training and crossvalidation");
     cvOption.setArgs(10);
     options.addOption(cvOption);
+    
+    Option predictionsFilenameOption = new Option("o", "out", true,
+        "name of the output file for storing predictions");
+    options.addOption(predictionsFilenameOption);
     
     parse();
   }
@@ -97,6 +106,11 @@ public class PrivacyClassifier {
           help();
         }
       }
+      
+      if (cmd.hasOption("o")) {
+        outPredictionsFilename = cmd.getOptionValue("o");
+      }
+      
     } catch (ParseException e) {
       log.log(Level.SEVERE, "Failed to parse comand line arguments", e);
       help();
@@ -176,7 +190,15 @@ public class PrivacyClassifier {
     Boolean printDist = new Boolean(false);
     double[] predictions = eval.evaluateModel(classifier, testingData, outBuffer, attRange,
         printDist);
-    System.out.println(outBuffer.toString());
+    
+    if (outPredictionsFilename == null || outPredictionsFilename.isEmpty()) {
+      System.out.println(outBuffer.toString());
+    } else {
+      try (BufferedWriter writer = new BufferedWriter(new FileWriter(outPredictionsFilename))) {
+        writer.append(outBuffer);
+      }
+    }
+    
     printEvalStatistics(eval);
     
     return predictions;
@@ -223,6 +245,8 @@ public class PrivacyClassifier {
   
   private Classifier getClassifier(PrivacyClassifierName classifierName) throws Exception {
     switch (classifierName) {
+    case NAIVE:
+      return new PrivacyNaiveClassifier();
     case LibSVM:
       LibSVM svmClassifier = new LibSVM();
       svmClassifier
