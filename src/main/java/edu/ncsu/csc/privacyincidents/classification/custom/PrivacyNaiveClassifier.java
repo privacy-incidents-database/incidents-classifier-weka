@@ -18,27 +18,46 @@ public class PrivacyNaiveClassifier extends Classifier {
   
   private Instances mInstances;
   
-  private List<Integer> privacyAttIndices = new ArrayList<Integer>(); 
+  private List<String> keywords = new ArrayList<String>();
+  private List<Integer> keywordAttIndices = new ArrayList<Integer>();
+  
+  /**
+   * Constructor: initialize with a list of keywords.
+   * 
+   * @param keywordsPsv Pipe (|) separated keyword list
+   */
+  public PrivacyNaiveClassifier(String keywordsPsv) {
+    if (keywordsPsv == null || keywordsPsv.isEmpty()) {
+      throw new IllegalArgumentException("Must provide at least one keyword");
+    }
+    
+    for (String keyword : keywordsPsv.split("\\|")) {
+      keywords.add(keyword.trim().toLowerCase());
+    }
+    System.out.println(keywords);
+  }
   
   @Override
   public void buildClassifier(Instances data) throws Exception {
     mInstances = new Instances(data);
     for (int i = 0; i < mInstances.numAttributes(); i++) {
       Attribute att = mInstances.attribute(i);
-      if (att.name().contains("privac")) {
-        privacyAttIndices.add(i);
+      for (String keyword : keywords) {
+        if (att.name().contains(keyword)) {
+          keywordAttIndices.add(i);
+        }
       }
     }
     
-    if (privacyAttIndices.size() == 0) {
-      throw new  IllegalArgumentException("The input data does not contain a privacy attribute");
+    if (keywordAttIndices.size() == 0) {
+      throw new  IllegalArgumentException("The input data does not contain any keywords supplied");
     }
   }
 
   @Override
   public double classifyInstance(Instance instance) {
-    for (Integer privacyAttIndex : privacyAttIndices) {
-      if (instance.value(instance.attribute(privacyAttIndex)) > 0) {
+    for (Integer keywordAttIndex : keywordAttIndices) {
+      if (instance.value(instance.attribute(keywordAttIndex)) > 0) {
         return 0;
       }
     }
@@ -47,6 +66,7 @@ public class PrivacyNaiveClassifier extends Classifier {
   
   public static void main(String[] args) throws Exception {
     String arffFilename = args[0];
+    String keywordsPsv = args[1];
 
     BufferedReader reader = new BufferedReader(new FileReader(arffFilename));
     Instances data = new Instances(reader);
@@ -59,7 +79,7 @@ public class PrivacyNaiveClassifier extends Classifier {
     
     System.out.println("# Attributes = " + filteredData.numAttributes());
     
-    PrivacyNaiveClassifier naiveClassifier = new PrivacyNaiveClassifier();
+    PrivacyNaiveClassifier naiveClassifier = new PrivacyNaiveClassifier(keywordsPsv);
     naiveClassifier.buildClassifier(filteredData);
     
     Evaluation eval = new Evaluation(data);

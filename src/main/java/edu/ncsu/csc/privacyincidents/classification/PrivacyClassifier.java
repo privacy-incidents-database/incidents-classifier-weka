@@ -25,8 +25,10 @@ import org.apache.commons.cli.ParseException;
 
 import weka.classifiers.Classifier;
 import weka.classifiers.Evaluation;
+import weka.classifiers.bayes.NaiveBayes;
 import weka.classifiers.functions.LibSVM;
 import weka.classifiers.functions.SMO;
+import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
 import weka.core.Range;
 import edu.ncsu.csc.privacyincidents.classification.custom.PrivacyNaiveClassifier;
@@ -38,15 +40,17 @@ public class PrivacyClassifier {
   private String[] args = null;
   private Options options = new Options();
 
-  private String[] trainingFiles;
-  private String[] testingFiles;
-  private String[] crossValidationFiles;
+  private String mKeywords;
+  
+  private String[] mTrainingFiles;
+  private String[] mTestingFiles;
+  private String[] mCrossValidationFiles;
   
   private String outPredictionsFilename;
   
   // TODO: Throw an exception when an invalid classifier is used
   private static enum PrivacyClassifierName {
-    NAIVE, SMO, LibSVM
+    NAIVE, NaiveBayes, SMO, LibSVM, RandomForest
   };
   
   private PrivacyClassifierName mClassifierName;
@@ -56,6 +60,8 @@ public class PrivacyClassifier {
     options.addOption("h", "help", false, "show help");
 
     options.addOption("c", "classifier", true, "classifier to train");
+    
+    options.addOption("k", "keywords", true, "keywords for the NAIVE classifier");
     
     Option trainOption = new Option("r", "train", true, "name of the arff file for training");
     trainOption.setArgs(10);
@@ -89,17 +95,27 @@ public class PrivacyClassifier {
       
       if (cmd.hasOption("c")) {
         mClassifierName = PrivacyClassifierName.valueOf(cmd.getOptionValue("c"));
+        
+        if (mClassifierName == PrivacyClassifierName.NAIVE) {
+          if (cmd.hasOption("k")) {
+            mKeywords = cmd.getOptionValue("k");
+          } else {
+            log.log(Level.SEVERE,
+                "Must provide a pipe (|) separated list of keywords if using NAIVE classifier");
+            help();            
+          }
+        }
       } else {
         log.log(Level.SEVERE, "Must provide a classifier name");
         help();
       }
       
       if (cmd.hasOption("v")) {
-        crossValidationFiles = cmd.getOptionValues("v");
+        mCrossValidationFiles = cmd.getOptionValues("v");
       } else if (cmd.hasOption("r")){
-        trainingFiles = cmd.getOptionValues("r");
+        mTrainingFiles = cmd.getOptionValues("r");
         if (cmd.hasOption("r")) {
-          testingFiles = cmd.getOptionValues("e");
+          mTestingFiles = cmd.getOptionValues("e");
         } else {
           log.log(Level.SEVERE,
               "Provided training files but no testing files; use crossvalidation, instead");
@@ -124,9 +140,9 @@ public class PrivacyClassifier {
   }
   
   private void run() throws Exception {
-    if (crossValidationFiles != null) {
+    if (mCrossValidationFiles != null) {
       runCrossValidation();
-    } else if (trainingFiles != null) {
+    } else if (mTrainingFiles != null) {
       runTrainingAndTesting();
     } else {
       log.log(Level.INFO, "Nothing to do");
@@ -134,7 +150,7 @@ public class PrivacyClassifier {
   }
   
   private void runCrossValidation() throws Exception {
-    Instances data = readArff(crossValidationFiles);
+    Instances data = readArff(mCrossValidationFiles);
     
     Classifier classifier = getClassifier(mClassifierName);
     
@@ -177,8 +193,8 @@ public class PrivacyClassifier {
   }
   
   private double[] runTrainingAndTesting() throws Exception {
-    Instances trainingData = readArff(trainingFiles);
-    Instances testingData = readArff(testingFiles);
+    Instances trainingData = readArff(mTrainingFiles);
+    Instances testingData = readArff(mTestingFiles);
     
     Classifier classifier = getClassifier(mClassifierName);
     classifier.buildClassifier(trainingData);
@@ -246,7 +262,10 @@ public class PrivacyClassifier {
   private Classifier getClassifier(PrivacyClassifierName classifierName) throws Exception {
     switch (classifierName) {
     case NAIVE:
-      return new PrivacyNaiveClassifier();
+      return new PrivacyNaiveClassifier(mKeywords);
+    case NaiveBayes:
+      NaiveBayes nbClassifier = new NaiveBayes();
+      return nbClassifier;
     case LibSVM:
       LibSVM svmClassifier = new LibSVM();
       svmClassifier
@@ -259,6 +278,11 @@ public class PrivacyClassifier {
           .setOptions(weka.core.Utils
               .splitOptions("-C 1.0 -L 0.0010 -P 1.0E-12 -N 0 -V -1 -W 1 -K \"weka.classifiers.functions.supportVector.PolyKernel -C 250007 -E 1.0\""));
       return smoClassifier;
+    case RandomForest:
+      RandomForest rfClassifier = new RandomForest();
+      rfClassifier.setMaxDepth(20);
+      rfClassifier.setNumTrees(400);
+      return rfClassifier;
     default:
       throw new IllegalArgumentException("Invalid classifier of name " + classifierName);
     }

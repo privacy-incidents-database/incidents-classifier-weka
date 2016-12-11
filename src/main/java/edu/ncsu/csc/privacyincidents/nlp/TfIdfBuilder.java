@@ -45,8 +45,15 @@ public class TfIdfBuilder implements AutoCloseable {
   // For IDF, count number of docs for each term
   private Map<String, Integer> termDocCounts = new HashMap<String, Integer>();
 
-  // TF-IDF table
-  private Table<Integer, String, Double> tfIdf = HashBasedTable.create();
+  // TF table
+  private Table<Integer, String, Double> tf = HashBasedTable.create();
+  
+  // IDF table
+  private Table<Integer, String, Double> idf = HashBasedTable.create();
+
+  // TF-IDF table // Don't need this
+  // private Table<Integer, String, Double> tfIdf = HashBasedTable.create();
+
 
   public TfIdfBuilder() {
     // Open NLP pipleline
@@ -64,7 +71,9 @@ public class TfIdfBuilder implements AutoCloseable {
 
     String positiveFilesTopLevelDirs = args[0];
     String negativeFilesTopLevelDirs = args[1];
-    String outCsvFilename = args[2];
+    String outTfCsvFilename = args[2];
+    String outIdfCsvFilename = args[3];
+    String outTfIdfCsvFilename = args[4];
 
     try (TfIdfBuilder tfIdfBldr = new TfIdfBuilder()) {
 
@@ -74,7 +83,7 @@ public class TfIdfBuilder implements AutoCloseable {
 
       tfIdfBldr.buildTfIdf();
       
-      tfIdfBldr.writeToCsv(outCsvFilename);
+      tfIdfBldr.writeToCsv(outTfCsvFilename, outIdfCsvFilename, outTfIdfCsvFilename);
     }
   }
 
@@ -172,8 +181,8 @@ public class TfIdfBuilder implements AutoCloseable {
     for (CoreMap sentence : annotation.get(CoreAnnotations.SentencesAnnotation.class)) {
       for (CoreLabel token : sentence.get(TokensAnnotation.class)) {
         String pos = token.get(PartOfSpeechAnnotation.class);
-        if (pos.startsWith("N") || pos.startsWith("J") || pos.startsWith("V")
-            || pos.startsWith("R")) {
+        if (pos.startsWith("N") || pos.startsWith("V") 
+            || pos.startsWith("J") || pos.startsWith("R")) {
           String lemma = token.get(LemmaAnnotation.class);
           words.add(lemma.toLowerCase());
         }
@@ -189,55 +198,172 @@ public class TfIdfBuilder implements AutoCloseable {
       Map<String, Integer> termCounts = docTermCounts.row(docId);
       Integer maxCount = Collections.max(termCounts.values());
       for (String term : termCounts.keySet()) {
-        double tF = 0.5 + (0.5 * termCounts.get(term) / maxCount);
+        double tF = 0.4 + (0.6 * termCounts.get(term) / maxCount);
         double iDF = Math.log((double) (mPositiveFilesMap.size() + mNegativeFilesMap.size())
             / termDocCounts.get(term));
-        tfIdf.put(docId, term, tF * iDF);
+        tf.put(docId, term, tF);
+        idf.put(docId, term, iDF);
+        // tfIdf.put(docId, term, tF * iDF); //Don't need this
       }
     }
   }
   
-  private void writeToCsv(String outCsvFilename) throws IOException {
-    try (CSVPrinter out = new CSVPrinter(new FileWriter(outCsvFilename),
+  private void writeToCsv(String outTfCsvFilename, String outIdfCsvFilename,
+      String outTfIdfCsvFilename) throws IOException {
+    writeTfToCsv(outTfCsvFilename);
+    writeIdfToCsv(outIdfCsvFilename);
+    writeTfIdfToCsv(outTfIdfCsvFilename);
+  }
+  
+  private void writeTfToCsv(String outTfCsvFilename) throws IOException {
+    try (CSVPrinter tfOut = new CSVPrinter(new FileWriter(outTfCsvFilename),
         CSVFormat.EXCEL.withDelimiter(','))) {
-      
+
       SortedSet<String> sortedWords = new TreeSet<String>();
-      sortedWords.addAll(tfIdf.columnKeySet());
+      sortedWords.addAll(tf.columnKeySet());
       
       // Write header
-      out.print("fileName");
-      out.print("isPrivacy");
+      tfOut.print("fileName");
+      tfOut.print("isPrivacy");
       for (String word : sortedWords) {
-        out.print(word);
+        tfOut.print(word);
       }
-      out.println();
+      tfOut.println();
       
       // Write positive files
       for (Integer posFileId : mPositiveFilesMap.keySet()) {
-        out.print(mPositiveFilesMap.get(posFileId));
-        out.print("0");
+        tfOut.print(mPositiveFilesMap.get(posFileId));
+        tfOut.print("0");
+        
         for (String word : sortedWords) {
-          Double tfIdfScore = tfIdf.get(posFileId, word);
-          if (tfIdfScore == null) {
-            tfIdfScore = 0.0;
+          Double tfScore = tf.get(posFileId, word);
+          if (tfScore == null) {
+            tfScore = 0.0;
           }
-          out.print(tfIdfScore);
+          tfOut.print(tfScore);          
         }
-        out.println();
+        tfOut.println();
       }
       
       // Write negative files
       for (Integer negFileId : mNegativeFilesMap.keySet()) {
-        out.print(mNegativeFilesMap.get(negFileId));
-        out.print("1");
+        tfOut.print(mNegativeFilesMap.get(negFileId));
+        tfOut.print("1");
+        
         for (String word : sortedWords) {
-          Double tfIdfScore = tfIdf.get(negFileId, word);
-          if (tfIdfScore == null) {
-            tfIdfScore = 0.0;
+          Double tfScore = tf.get(negFileId, word);
+          if (tfScore == null) {
+            tfScore = 0.0;
           }
-          out.print(tfIdfScore);
+          tfOut.print(tfScore * tfScore);
         }
-        out.println();
+        tfOut.println();
+      }
+    }
+  }
+  
+  private void writeIdfToCsv(String outIdfCsvFilename) throws IOException {
+    try (CSVPrinter idfOut = new CSVPrinter(new FileWriter(outIdfCsvFilename),
+        CSVFormat.EXCEL.withDelimiter(','))) {
+
+      SortedSet<String> sortedWords = new TreeSet<String>();
+      sortedWords.addAll(tf.columnKeySet());
+      
+      // Write header
+      idfOut.print("fileName");
+      idfOut.print("isPrivacy");
+      for (String word : sortedWords) {
+        idfOut.print(word);
+      }
+      idfOut.println();
+      
+      // Write positive files
+      for (Integer posFileId : mPositiveFilesMap.keySet()) {
+        idfOut.print(mPositiveFilesMap.get(posFileId));
+        idfOut.print("0");
+        
+        for (String word : sortedWords) {
+          Double idfScore = idf.get(posFileId, word);
+          if (idfScore == null) {
+            idfScore = 0.0;
+          }
+          idfOut.print(idfScore);          
+        }
+        idfOut.println();
+      }
+      
+      // Write negative files
+      for (Integer negFileId : mNegativeFilesMap.keySet()) {
+        idfOut.print(mNegativeFilesMap.get(negFileId));
+        idfOut.print("1");
+        
+        for (String word : sortedWords) {
+          Double idfScore = idf.get(negFileId, word);
+          if (idfScore == null) {
+            idfScore = 0.0;
+          }
+          idfOut.print(idfScore);
+        }
+        idfOut.println();
+      }
+    }
+  }
+
+  private void writeTfIdfToCsv(String outTfIdfCsvFilename) throws IOException {
+    try (CSVPrinter tfIdfOut = new CSVPrinter(new FileWriter(outTfIdfCsvFilename),
+        CSVFormat.EXCEL.withDelimiter(','))) {
+
+      SortedSet<String> sortedWords = new TreeSet<String>();
+      sortedWords.addAll(tf.columnKeySet());
+      
+      // Write header
+      tfIdfOut.print("fileName");
+      tfIdfOut.print("isPrivacy");
+      for (String word : sortedWords) {
+        tfIdfOut.print(word);
+      }
+      tfIdfOut.println();
+      
+      // Write positive files
+      for (Integer posFileId : mPositiveFilesMap.keySet()) {        
+        tfIdfOut.print(mPositiveFilesMap.get(posFileId));
+        tfIdfOut.print("0");
+
+        for (String word : sortedWords) {
+          Double tfScore = tf.get(posFileId, word);
+          if (tfScore == null) {
+            tfScore = 0.0;
+          }
+          
+          Double idfScore = idf.get(posFileId, word);
+          if (idfScore == null) {
+            idfScore = 0.0;
+          }
+          
+          tfIdfOut.print(tfScore * idfScore);
+        }
+        tfIdfOut.println();
+      }
+      
+      // Write negative files
+      for (Integer negFileId : mNegativeFilesMap.keySet()) {
+        tfIdfOut.print(mNegativeFilesMap.get(negFileId));
+        tfIdfOut.print("1");
+
+        for (String word : sortedWords) {
+          Double tfScore = tf.get(negFileId, word);
+          if (tfScore == null) {
+            tfScore = 0.0;
+          }
+          
+          Double idfScore = idf.get(negFileId, word);
+          if (idfScore == null) {
+            idfScore = 0.0;
+          }
+          
+          tfIdfOut.print(tfScore * idfScore);
+        }
+        tfIdfOut.println();
       }
     }
   }
