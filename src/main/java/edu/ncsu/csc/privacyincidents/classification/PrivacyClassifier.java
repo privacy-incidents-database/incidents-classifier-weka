@@ -32,7 +32,6 @@ import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
 import weka.core.Range;
 import edu.ncsu.csc.privacyincidents.classification.custom.PrivacyNaiveClassifier;
-import edu.ncsu.csc.privacyincidents.util.StopWordsHandler;
 
 public class PrivacyClassifier {
 
@@ -250,13 +249,11 @@ public class PrivacyClassifier {
 
     data.setClassIndex(data.numAttributes() - 1);
 
-    Instances filteredData = StopWordsHandler.filterInstances(data);
+    System.out.println("# Attributes = " + data.numAttributes());
+    System.out.println("# Instances = " + data.numInstances());
+    System.out.println("# Classes = " + data.numClasses());
 
-    System.out.println("# Attributes = " + filteredData.numAttributes());
-    System.out.println("# Instances = " + filteredData.numInstances());
-    System.out.println("# Classes = " + filteredData.numClasses());
-
-    return filteredData;
+    return data;
   }
   
   private Classifier getClassifier(PrivacyClassifierName classifierName) throws Exception {

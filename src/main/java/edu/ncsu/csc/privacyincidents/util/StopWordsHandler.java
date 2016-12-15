@@ -1,5 +1,7 @@
 package edu.ncsu.csc.privacyincidents.util;
 
+import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
 import java.nio.file.Paths;
@@ -14,6 +16,29 @@ import weka.filters.unsupervised.attribute.Remove;
 
 public class StopWordsHandler {
   
+  private final List<String> stopWords = new ArrayList<String>();
+  
+  public StopWordsHandler(String stopwordFilename) throws IOException, URISyntaxException {
+    stopWords.addAll(
+        Files.readAllLines(Paths.get(ClassLoader.getSystemResource(stopwordFilename).toURI()),
+            Charset.forName("utf-8")));
+    System.out.println("# Stop words = " + stopWords.size());
+  }
+  
+  public StopWordsHandler(List<String> stopwordFilenames) throws IOException, URISyntaxException {
+    for (String stopwordFilename : stopwordFilenames) {
+      stopWords.addAll(
+          Files.readAllLines(Paths.get(ClassLoader.getSystemResource(stopwordFilename).toURI()),
+              Charset.forName("utf-8")));
+    }
+    System.out.println("# Stop words = " + stopWords.size());
+  }
+  
+  public boolean isStopword(String word) {
+    return stopWords.contains(word.trim().toLowerCase());
+  }
+  
+  @Deprecated // TODO: Create nonstatic methods for these
   public static Instances filterInstances(Instances data) throws Exception {
     List<String> stopWords = Files
         .readAllLines(Paths.get(ClassLoader.getSystemResource("stopwords.txt").toURI()),
@@ -54,6 +79,7 @@ public class StopWordsHandler {
     return filteredData;
   }
   
+  @Deprecated // TODO: Create nonstatic methods for these
   public static Instances filterInstances(Instances data, List<String> additionalStopWords)
       throws Exception {
     

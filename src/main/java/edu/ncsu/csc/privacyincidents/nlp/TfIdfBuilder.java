@@ -4,9 +4,9 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.nio.file.Files;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -22,6 +22,7 @@ import org.apache.commons.csv.CSVPrinter;
 import com.google.common.collect.HashBasedTable;
 import com.google.common.collect.Table;
 
+import edu.ncsu.csc.privacyincidents.util.StopWordsHandler;
 import edu.stanford.nlp.ling.CoreAnnotations;
 import edu.stanford.nlp.ling.CoreAnnotations.LemmaAnnotation;
 import edu.stanford.nlp.ling.CoreAnnotations.PartOfSpeechAnnotation;
@@ -30,10 +31,13 @@ import edu.stanford.nlp.ling.CoreLabel;
 import edu.stanford.nlp.pipeline.Annotation;
 import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.CoreMap;
+import edu.stanford.nlp.util.StringUtils;
 
 public class TfIdfBuilder implements AutoCloseable {
 
   private StanfordCoreNLP mNlpPipeline;
+  
+  private StopWordsHandler mStopWordsHandler;
 
   private Map<Integer, File> mPositiveFilesMap = new HashMap<Integer, File>();
 
@@ -55,11 +59,13 @@ public class TfIdfBuilder implements AutoCloseable {
   // private Table<Integer, String, Double> tfIdf = HashBasedTable.create();
 
 
-  public TfIdfBuilder() {
+  public TfIdfBuilder() throws IOException, URISyntaxException {
     // Open NLP pipleline
     Properties nlpProps = new Properties();
     nlpProps.setProperty("annotators", "tokenize, ssplit, pos, lemma");
     mNlpPipeline = new StanfordCoreNLP(nlpProps);
+    
+    mStopWordsHandler = new StopWordsHandler("english-stopwords.txt");
   }
 
   public void close() throws Exception {
@@ -102,15 +108,18 @@ public class TfIdfBuilder implements AutoCloseable {
     Set<File> negativeFiles = new HashSet<File>();
     String[] negativeFilesTopLevelDirsArray = negativeFilesTopLevelDirs.split(DIRNAME_SEPARATOR);
     for (int i = 0; i < negativeFilesTopLevelDirsArray.length; i++) {
+      System.out.println(negativeFilesTopLevelDirsArray[i]);
       negativeFiles.addAll(listFilesForDirectory(new File(negativeFilesTopLevelDirsArray[i])));
     }
     System.out.println("Number of negative files: " + negativeFiles.size());
 
     int id = 0;
     for (File positivefile : positiveFiles) {
+      // System.out.println("Positive file: " + positivefile);
       mPositiveFilesMap.put(id++, positivefile);
     }
     for (File negativefile : negativeFiles) {
+      // System.out.println("Negative file: " + negativefile);
       mNegativeFilesMap.put(id++, negativefile);
     }
   }
@@ -180,11 +189,51 @@ public class TfIdfBuilder implements AutoCloseable {
 
     for (CoreMap sentence : annotation.get(CoreAnnotations.SentencesAnnotation.class)) {
       for (CoreLabel token : sentence.get(TokensAnnotation.class)) {
+        // Discard words that only have punctuations, numerals
+        if (StringUtils.isPunct(token.originalText())
+            || StringUtils.isNumeric(token.originalText())) {
+          continue;
+        }
+        
+        // This seems redundant given the following check on isAlpha(), but
+        // somehow this seems to increase prediction accuracy. But, this could
+        // just be due to the fact that I randomly select the negative set and
+        // results might differ slightly from run to run.
+        if (!StringUtils.isAlphanumeric(token.originalText())) {
+          continue;
+        }
+                
+        // Discard non alphabetic words. This may be too restrictive! Consider
+        // adding a list of allowed alphanumeric words such as "49ers"
+        if (!StringUtils.isAlpha(token.originalText())) {
+          // Keep hashtags. This didn't help accuracy; so, commenting it
+          /*if (!token.originalText().startsWith("#")) {
+            continue;
+          }*/
+          continue;
+        }        
+        
+        /*
+         * Long words are likely not natural, e.g., I found instances such as
+         * januaryfebrauary...december in the dataset. Longest common word has
+         * length 20 --
+         * https://web.archive.org/web/20090427054251/http://www.maltron.com/
+         * words/words-longest-modern.html
+         */
+        if (token.originalText().length() > 20) {
+          continue;
+        }
+
         String pos = token.get(PartOfSpeechAnnotation.class);
+        // System.out.println(token + ": " + pos);
         if (pos.startsWith("N") || pos.startsWith("V") 
             || pos.startsWith("J") || pos.startsWith("R")) {
           String lemma = token.get(LemmaAnnotation.class);
-          words.add(lemma.toLowerCase());
+          
+          // Remove word if it is a stop word
+          if (!mStopWordsHandler.isStopword(lemma)) {
+            words.add(lemma.toLowerCase());
+          }
         }
       }
     }
@@ -196,9 +245,10 @@ public class TfIdfBuilder implements AutoCloseable {
     // Change term counts to term frequencies
     for (Integer docId : docTermCounts.rowKeySet()) {
       Map<String, Integer> termCounts = docTermCounts.row(docId);
-      Integer maxCount = Collections.max(termCounts.values());
+      // Integer maxCount = Collections.max(termCounts.values());
       for (String term : termCounts.keySet()) {
-        double tF = 0.4 + (0.6 * termCounts.get(term) / maxCount);
+        // double tF = 0.4 + (0.6 * termCounts.get(term) / maxCount);
+        double tF = 1 + Math.log(termCounts.get(term));
         double iDF = Math.log((double) (mPositiveFilesMap.size() + mNegativeFilesMap.size())
             / termDocCounts.get(term));
         tf.put(docId, term, tF);
@@ -255,7 +305,7 @@ public class TfIdfBuilder implements AutoCloseable {
           if (tfScore == null) {
             tfScore = 0.0;
           }
-          tfOut.print(tfScore * tfScore);
+          tfOut.print(tfScore);
         }
         tfOut.println();
       }
