@@ -1,6 +1,8 @@
 package edu.ncsu.csc.privacyincidents.util;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.URISyntaxException;
 import java.nio.charset.Charset;
 import java.nio.file.Files;
@@ -19,17 +21,27 @@ public class StopWordsHandler {
   private final List<String> stopWords = new ArrayList<String>();
   
   public StopWordsHandler(String stopwordFilename) throws IOException, URISyntaxException {
-    stopWords.addAll(
-        Files.readAllLines(Paths.get(ClassLoader.getSystemResource(stopwordFilename).toURI()),
-            Charset.forName("utf-8")));
+    String line = null;
+    try (BufferedReader br = new BufferedReader(
+        new InputStreamReader(StopWordsHandler.class.getResourceAsStream(stopwordFilename)))) {
+      while ((line = br.readLine()) != null) {
+        if (!line.startsWith("//"))
+          stopWords.add(line);
+      }
+    }
     System.out.println("# Stop words = " + stopWords.size());
   }
-  
+
   public StopWordsHandler(List<String> stopwordFilenames) throws IOException, URISyntaxException {
     for (String stopwordFilename : stopwordFilenames) {
-      stopWords.addAll(
-          Files.readAllLines(Paths.get(ClassLoader.getSystemResource(stopwordFilename).toURI()),
-              Charset.forName("utf-8")));
+      String line = null;
+      try (BufferedReader br = new BufferedReader(
+          new InputStreamReader(StopWordsHandler.class.getResourceAsStream(stopwordFilename)))) {
+        while ((line = br.readLine()) != null) {
+          if (!line.startsWith("//"))
+            stopWords.add(line);
+        }
+      }
     }
     System.out.println("# Stop words = " + stopWords.size());
   }

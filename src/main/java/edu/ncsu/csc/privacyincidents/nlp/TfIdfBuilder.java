@@ -65,7 +65,7 @@ public class TfIdfBuilder implements AutoCloseable {
     nlpProps.setProperty("annotators", "tokenize, ssplit, pos, lemma");
     mNlpPipeline = new StanfordCoreNLP(nlpProps);
     
-    mStopWordsHandler = new StopWordsHandler("english-stopwords.txt");
+    mStopWordsHandler = new StopWordsHandler("/english-stopwords.txt");
   }
 
   public void close() throws Exception {
@@ -77,15 +77,16 @@ public class TfIdfBuilder implements AutoCloseable {
 
     String positiveFilesTopLevelDirs = args[0];
     String negativeFilesTopLevelDirs = args[1];
-    String outTfCsvFilename = args[2];
-    String outIdfCsvFilename = args[3];
-    String outTfIdfCsvFilename = args[4];
+    Integer numberOfGrams = Integer.parseInt(args[2]);
+    String outTfCsvFilename = args[3];
+    String outIdfCsvFilename = args[4];
+    String outTfIdfCsvFilename = args[5];
 
     try (TfIdfBuilder tfIdfBldr = new TfIdfBuilder()) {
 
       tfIdfBldr.readFilenames(positiveFilesTopLevelDirs, negativeFilesTopLevelDirs);
 
-      tfIdfBldr.readFiles();
+      tfIdfBldr.readFiles(numberOfGrams);
 
       tfIdfBldr.buildTfIdf();
       
@@ -141,46 +142,55 @@ public class TfIdfBuilder implements AutoCloseable {
     return fileNames;
   }
   
-  private void readFiles() throws IOException {
+  private void readFiles(int numberOfGrams) throws IOException {
     for (Integer posFileID : mPositiveFilesMap.keySet()) {
       File posFile = mPositiveFilesMap.get(posFileID);
-      updateCounts(posFileID, posFile);
+      updateCounts(posFileID, posFile, numberOfGrams);
     }
 
     for (Integer negFileID : mNegativeFilesMap.keySet()) {
       File posFile = mNegativeFilesMap.get(negFileID);
-      updateCounts(negFileID, posFile);
+      updateCounts(negFileID, posFile, numberOfGrams);
     }
   }
 
-  private void updateCounts(Integer fileId, File file) throws IOException {
+  private void updateCounts(Integer fileId, File file, int numberOfGrams) throws IOException {
     byte[] encoded = Files.readAllBytes(file.toPath());
     String fileContents = new String(encoded);
 
     List<String> bagOfWords = getBagOfWords(fileContents);
+    
+    List<String> nGrams = getNGrams(bagOfWords, numberOfGrams);
 
-    for (String word : bagOfWords) {
-      Integer wordCount = docTermCounts.get(fileId, word);
-      if (wordCount == null) {
-        docTermCounts.put(fileId, word, 1);
+    for (String nGram : nGrams) {
+      Integer nGramCount = docTermCounts.get(fileId, nGram);
+      if (nGramCount == null) {
+        docTermCounts.put(fileId, nGram, 1);
       } else {
-        docTermCounts.put(fileId, word, wordCount + 1);
+        docTermCounts.put(fileId, nGram, nGramCount + 1);
       }
     }
 
-    Set<String> bagOfUniqueWords = new HashSet<String>();
-    bagOfUniqueWords.addAll(bagOfWords);
+    Set<String> uniqueNgrams = new HashSet<String>();
+    uniqueNgrams.addAll(nGrams);
 
-    for (String word : bagOfUniqueWords) {
-      Integer docCount = termDocCounts.get(word);
+    for (String ngram : uniqueNgrams) {
+      Integer docCount = termDocCounts.get(ngram);
       if (docCount == null) {
-        termDocCounts.put(word, 1);
+        termDocCounts.put(ngram, 1);
       } else {
-        termDocCounts.put(word, docCount + 1);
+        termDocCounts.put(ngram, docCount + 1);
       }
     }
   }
 
+  /**
+   * Returns a list of words in the input text after text preprocessing. The
+   * list has a null value between each sentences in the input text.
+   * 
+   * @param text
+   * @return
+   */
   private List<String> getBagOfWords(String text) {
     List<String> words = new ArrayList<String>();
 
@@ -189,7 +199,7 @@ public class TfIdfBuilder implements AutoCloseable {
 
     for (CoreMap sentence : annotation.get(CoreAnnotations.SentencesAnnotation.class)) {
       for (CoreLabel token : sentence.get(TokensAnnotation.class)) {
-        // Discard words that only have punctuations, numerals
+        // Discard words that only have punctuation, numerals
         if (StringUtils.isPunct(token.originalText())
             || StringUtils.isNumeric(token.originalText())) {
           continue;
@@ -236,9 +246,36 @@ public class TfIdfBuilder implements AutoCloseable {
           }
         }
       }
+      words.add(null);
     }
 
     return words;
+  }
+
+  /**
+   * Computes n-grams (uni and bigrams, for now; this logic needs to be
+   * generalized for larger n's)
+   * 
+   * @param bagOfWords
+   *          List of words with a null value between in between sentences
+   */
+  private List<String> getNGrams(List<String> bagOfWords, int n) {
+    List<String> ngrams = new ArrayList<String>();
+    String prevWord = null;
+    for (String curWord : bagOfWords) {
+      if (curWord != null) {
+        if (n >= 1) {
+          ngrams.add(curWord);
+        }
+        if (prevWord != null) {
+          if (n >= 2) {
+            ngrams.add(prevWord + "+" + curWord);
+          }
+        }
+      }
+      prevWord = curWord;
+    }
+    return ngrams;
   }
 
   private void buildTfIdf() {
