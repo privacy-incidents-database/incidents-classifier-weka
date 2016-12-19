@@ -161,6 +161,10 @@ public class TfIdfBuilder implements AutoCloseable {
     List<String> bagOfWords = getBagOfWords(fileContents);
     
     List<String> nGrams = getNGrams(bagOfWords, numberOfGrams);
+    
+    // Comment the two lines above and uncomment the line below to use all
+    // tokens without preprocessing.
+    // List<String> nGrams = getBagOfAllWords(fileContents);
 
     for (String nGram : nGrams) {
       Integer nGramCount = docTermCounts.get(fileId, nGram);
@@ -252,6 +256,28 @@ public class TfIdfBuilder implements AutoCloseable {
     return words;
   }
 
+  /**
+   * This is a temporary method used only to get a count of all words in the
+   * corpus.
+   * 
+   * @param text
+   * @return
+   */
+  @SuppressWarnings("unused")
+  private List<String> getBagOfAllWords(String text) {
+    List<String> words = new ArrayList<String>();
+
+    Annotation annotation = new Annotation(text);
+    mNlpPipeline.annotate(annotation);
+
+    for (CoreMap sentence : annotation.get(CoreAnnotations.SentencesAnnotation.class)) {
+      for (CoreLabel token : sentence.get(TokensAnnotation.class)) {
+        words.add(token.originalText().trim().toLowerCase());
+      }
+    }
+    return words;
+  }
+  
   /**
    * Computes n-grams (uni and bigrams, for now; this logic needs to be
    * generalized for larger n's)
