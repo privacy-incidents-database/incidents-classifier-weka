@@ -10,6 +10,7 @@ import java.io.PrintWriter;
 
 import weka.attributeSelection.ASEvaluation;
 import weka.attributeSelection.AttributeSelection;
+import weka.attributeSelection.ChiSquaredAttributeEval;
 import weka.attributeSelection.InfoGainAttributeEval;
 import weka.attributeSelection.Ranker;
 import weka.core.Instances;
@@ -21,7 +22,7 @@ public class AttributeSelector {
   private Instances mData;
 
   private static enum AttributeSelectorName {
-    InfoGain
+    InfoGain, ChiSquared
   };
 
   public AttributeSelector(String arffFile) throws IOException {
@@ -36,6 +37,8 @@ public class AttributeSelector {
     switch (selectorName) {
     case InfoGain:
       return new InfoGainAttributeEval();
+    case ChiSquared:
+      return new ChiSquaredAttributeEval();
     default:
       throw new IllegalStateException(
           selectorName + " is not a supported attribute selector; this should not have happened");
