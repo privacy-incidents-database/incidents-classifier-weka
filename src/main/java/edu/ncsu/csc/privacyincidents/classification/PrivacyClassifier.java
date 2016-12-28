@@ -2,7 +2,9 @@ package edu.ncsu.csc.privacyincidents.classification;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileWriter;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -12,6 +14,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Random;
+import java.util.Scanner;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -31,7 +34,7 @@ import weka.classifiers.functions.SMO;
 import weka.classifiers.trees.RandomForest;
 import weka.core.Instances;
 import weka.core.Range;
-import edu.ncsu.csc.privacyincidents.classification.custom.PrivacyNaiveClassifier;
+import edu.ncsu.csc.privacyincidents.classification.custom.KeywordBasedClassifier;
 
 public class PrivacyClassifier {
 
@@ -39,7 +42,8 @@ public class PrivacyClassifier {
   private String[] args = null;
   private Options options = new Options();
 
-  private String mKeywords;
+  // private String mKeywords;
+  private List<String> mKeywords = new ArrayList<String>();
   
   private String[] mTrainingFiles;
   private String[] mTestingFiles;
@@ -49,18 +53,21 @@ public class PrivacyClassifier {
   
   // TODO: Throw an exception when an invalid classifier is used
   private static enum PrivacyClassifierName {
-    NAIVE, NaiveBayes, SMO, LibSVM, RandomForest
+    KEYWORD_BASED, NAIVE_BAYES, SMO, LIB_SVM, RANDOM_FOREST
   };
   
   private PrivacyClassifierName mClassifierName;
   
-  public PrivacyClassifier(String[] args) {
+  public PrivacyClassifier(String[] args) throws FileNotFoundException {
     this.args = args;
     options.addOption("h", "help", false, "show help");
 
     options.addOption("c", "classifier", true, "classifier to train");
     
-    options.addOption("k", "keywords", true, "keywords for the NAIVE classifier");
+    Option keywordOption = new Option("k", "keywordsFile", true,
+        "name of the file containing keywords (one per line) for the NAIVE classifier");
+    keywordOption.setArgs(1);
+    options.addOption(keywordOption);
     
     Option trainOption = new Option("r", "train", true, "name of the arff file for training");
     trainOption.setArgs(10);
@@ -82,7 +89,7 @@ public class PrivacyClassifier {
     parse();
   }
 
-  private void parse() {
+  private void parse() throws FileNotFoundException {
     CommandLineParser parser = new DefaultParser();
     CommandLine cmd = null;
     try {
@@ -93,21 +100,41 @@ public class PrivacyClassifier {
       } 
       
       if (cmd.hasOption("c")) {
-        mClassifierName = PrivacyClassifierName.valueOf(cmd.getOptionValue("c"));
-        
-        if (mClassifierName == PrivacyClassifierName.NAIVE) {
-          if (cmd.hasOption("k")) {
-            mKeywords = cmd.getOptionValue("k");
-          } else {
-            log.log(Level.SEVERE,
-                "Must provide a pipe (|) separated list of keywords if using NAIVE classifier");
-            help();            
-          }
-        }
+        mClassifierName = PrivacyClassifierName.valueOf(cmd.getOptionValue("c"));        
       } else {
         log.log(Level.SEVERE, "Must provide a classifier name");
         help();
       }
+      
+      /*
+      if (mClassifierName == PrivacyClassifierName.KEYWORD_BASED) {
+        if (cmd.hasOption("k")) {
+          mKeywords = cmd.getOptionValue("k");
+        } else {
+          log.log(Level.SEVERE,
+              "Must provide a pipe (|) separated list of keywords if using NAIVE classifier");
+          help();            
+        }
+      }*/
+      
+      if (mClassifierName == PrivacyClassifierName.KEYWORD_BASED) {
+        if (cmd.hasOption("k")) {
+          String keywordsFilename = cmd.getOptionValue("k");
+          try (Scanner s = new Scanner(new File(keywordsFilename))) {
+            while (s.hasNext()) {
+              String nextLine = s.next().trim().toLowerCase();
+              if (!nextLine.isEmpty() && !nextLine.startsWith("#")) {
+                mKeywords.add(nextLine);
+              }
+            }
+          }
+        } else {
+          log.log(Level.SEVERE,
+              "Must provide a keywords filename");
+          help();            
+        }
+      }
+
       
       if (cmd.hasOption("v")) {
         mCrossValidationFiles = cmd.getOptionValues("v");
@@ -258,12 +285,12 @@ public class PrivacyClassifier {
   
   private Classifier getClassifier(PrivacyClassifierName classifierName) throws Exception {
     switch (classifierName) {
-    case NAIVE:
-      return new PrivacyNaiveClassifier(mKeywords);
-    case NaiveBayes:
+    case KEYWORD_BASED:
+      return new KeywordBasedClassifier(mKeywords);
+    case NAIVE_BAYES:
       NaiveBayes nbClassifier = new NaiveBayes();
       return nbClassifier;
-    case LibSVM:
+    case LIB_SVM:
       LibSVM svmClassifier = new LibSVM();
       svmClassifier
           .setOptions(weka.core.Utils
@@ -275,7 +302,7 @@ public class PrivacyClassifier {
           .setOptions(weka.core.Utils
               .splitOptions("-C 1.0 -L 0.0010 -P 1.0E-12 -N 0 -V -1 -W 1 -K \"weka.classifiers.functions.supportVector.PolyKernel -C 250007 -E 1.0\""));
       return smoClassifier;
-    case RandomForest:
+    case RANDOM_FOREST:
       RandomForest rfClassifier = new RandomForest();
       rfClassifier.setMaxDepth(20);
       rfClassifier.setNumTrees(400);

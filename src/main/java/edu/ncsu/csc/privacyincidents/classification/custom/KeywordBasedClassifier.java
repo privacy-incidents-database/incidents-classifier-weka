@@ -12,51 +12,63 @@ import weka.core.Attribute;
 import weka.core.Instance;
 import weka.core.Instances;
 
-public class PrivacyNaiveClassifier extends Classifier {
+public class KeywordBasedClassifier extends Classifier {
 
   private static final long serialVersionUID = 1478544817603231136L;
   
   private Instances mInstances;
   
-  private List<String> keywords = new ArrayList<String>();
-  private List<Integer> keywordAttIndices = new ArrayList<Integer>();
+  private final List<String> mKeywords = new ArrayList<String>();
+  private final List<Integer> mKeywordAttIndices = new ArrayList<Integer>();
   
   /**
    * Constructor: initialize with a list of keywords.
    * 
    * @param keywordsPsv Pipe (|) separated keyword list
    */
-  public PrivacyNaiveClassifier(String keywordsPsv) {
+  public KeywordBasedClassifier(String keywordsPsv) {
     if (keywordsPsv == null || keywordsPsv.isEmpty()) {
       throw new IllegalArgumentException("Must provide at least one keyword");
     }
     
     for (String keyword : keywordsPsv.split("\\|")) {
-      keywords.add(keyword.trim().toLowerCase());
+      mKeywords.add(keyword.trim().toLowerCase());
     }
-    System.out.println(keywords);
+    
+    System.out.println(mKeywords);
   }
+  
+  public KeywordBasedClassifier(List<String> keywords) {
+    mKeywords.addAll(keywords);
+    
+    if (mKeywords.isEmpty()) {
+      throw new IllegalArgumentException("Must provide at least one keyword");
+    }
+    
+    System.out.println(mKeywords);
+  }
+
   
   @Override
   public void buildClassifier(Instances data) throws Exception {
     mInstances = new Instances(data);
     for (int i = 0; i < mInstances.numAttributes(); i++) {
       Attribute att = mInstances.attribute(i);
-      for (String keyword : keywords) {
+      for (String keyword : mKeywords) {
         if (att.name().contains(keyword)) {
-          keywordAttIndices.add(i);
+          mKeywordAttIndices.add(i);
         }
       }
     }
     
-    if (keywordAttIndices.size() == 0) {
+    if (mKeywordAttIndices.size() == 0) {
       throw new  IllegalArgumentException("The input data does not contain any keywords supplied");
     }
   }
 
   @Override
   public double classifyInstance(Instance instance) {
-    for (Integer keywordAttIndex : keywordAttIndices) {
+    for (Integer keywordAttIndex : mKeywordAttIndices) {
       if (instance.value(instance.attribute(keywordAttIndex)) > 0) {
         return 0;
       }
@@ -79,7 +91,7 @@ public class PrivacyNaiveClassifier extends Classifier {
     
     System.out.println("# Attributes = " + filteredData.numAttributes());
     
-    PrivacyNaiveClassifier naiveClassifier = new PrivacyNaiveClassifier(keywordsPsv);
+    KeywordBasedClassifier naiveClassifier = new KeywordBasedClassifier(keywordsPsv);
     naiveClassifier.buildClassifier(filteredData);
     
     Evaluation eval = new Evaluation(data);
