@@ -31,7 +31,7 @@ import edu.stanford.nlp.pipeline.StanfordCoreNLP;
 import edu.stanford.nlp.util.CoreMap;
 import edu.stanford.nlp.util.StringUtils;
 
-public class FrrequentTermsComputer implements AutoCloseable {
+public class FrequentTermsComputer implements AutoCloseable {
 
   private StanfordCoreNLP mNlpPipeline;
   
@@ -42,7 +42,7 @@ public class FrrequentTermsComputer implements AutoCloseable {
   // For TF, count terms in each document
   private Table<Integer, String, Integer> docTermCounts = HashBasedTable.create();
 
-  public FrrequentTermsComputer() throws IOException, URISyntaxException {
+  public FrequentTermsComputer() throws IOException, URISyntaxException {
     // Open NLP pipleline
     Properties nlpProps = new Properties();
     nlpProps.setProperty("annotators", "tokenize, ssplit, pos, lemma");
@@ -61,7 +61,7 @@ public class FrrequentTermsComputer implements AutoCloseable {
     String topLevelDirs = args[0];
     String outCsvFilename = args[1];
 
-    try (FrrequentTermsComputer tfIdfBldr = new FrrequentTermsComputer()) {
+    try (FrequentTermsComputer tfIdfBldr = new FrequentTermsComputer()) {
 
       tfIdfBldr.readFilenames(topLevelDirs);
 

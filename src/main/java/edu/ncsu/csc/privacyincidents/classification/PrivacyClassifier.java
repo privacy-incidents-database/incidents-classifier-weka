@@ -199,6 +199,22 @@ public class PrivacyClassifier {
     eval.crossValidateModel(classifier, data, 10, new Random(1));
     return returnEvalStatistics(eval);
   }
+  
+  public Map<String, Double> runCrossValidationOnKeywordBasedClassifier(Instances data,
+      List<String> keywords) throws Exception {
+    
+    if (keywords == null || keywords.isEmpty()) {
+      throw new IllegalArgumentException("List of keywords must be non-empty");
+    }
+    mKeywords.clear();
+    mKeywords.addAll(keywords);
+    
+    Classifier classifier = getClassifier(PrivacyClassifierName.KEYWORD_BASED);
+
+    Evaluation eval = new Evaluation(data);
+    eval.crossValidateModel(classifier, data, 10, new Random(1));
+    return returnEvalStatistics(eval);
+  }
 
   
   private void printEvalStatistics(Evaluation eval) {
