@@ -12,7 +12,9 @@ import java.io.SequenceInputStream;
 import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 import java.util.Scanner;
 import java.util.logging.Level;
@@ -57,6 +59,10 @@ public class PrivacyClassifier {
   };
   
   private PrivacyClassifierName mClassifierName;
+  
+  public PrivacyClassifier() {
+    // Does nothing
+  }
   
   public PrivacyClassifier(String[] args) throws FileNotFoundException {
     this.args = args;
@@ -185,6 +191,16 @@ public class PrivacyClassifier {
     printEvalStatistics(eval);
   }
   
+  public Map<String, Double> runCrossValidation(Instances data, String classifierName)
+      throws Exception {
+    Classifier classifier = getClassifier(PrivacyClassifierName.valueOf(classifierName));
+
+    Evaluation eval = new Evaluation(data);
+    eval.crossValidateModel(classifier, data, 10, new Random(1));
+    return returnEvalStatistics(eval);
+  }
+
+  
   private void printEvalStatistics(Evaluation eval) {
     System.out.println("Percent correct = " + eval.pctCorrect() + "; " + "Percent incorrect = "
         + eval.pctIncorrect());
@@ -216,6 +232,34 @@ public class PrivacyClassifier {
     System.out.println("Avg. Precision " + precisionSum / 2);
     System.out.println("Avg. Recall " + recallSum / 2);
     System.out.println("Avg. F-measure " + fMeasureSum / 2);
+  }
+  
+  private Map<String, Double> returnEvalStatistics(Evaluation eval) {
+    Map<String, Double> retVals = new HashMap<String, Double>();
+    
+    retVals.put("percentCorrect", eval.pctCorrect());
+    retVals.put("percentIncorrect", eval.pctIncorrect());
+    
+    double precisionSum = 0;
+    double recallSum = 0;
+    double fMeasureSum = 0;
+    
+    for (int i = 0; i < 2; i++) {
+      retVals.put("class" + (i + 1) + "Precision", eval.precision(i));
+      precisionSum += eval.precision(i);
+
+      retVals.put("class" + (i + 1) + "Recall", eval.recall(i));
+      recallSum += eval.recall(i);
+
+      retVals.put("class" + (i + 1) + "FMeasure", eval.fMeasure(i));
+      fMeasureSum += eval.fMeasure(i);
+    }
+    
+    retVals.put("avgPrecision", precisionSum / 2);
+    retVals.put("avgRecall", recallSum / 2);
+    retVals.put("avgFMeasure", fMeasureSum / 2);
+    
+    return retVals;
   }
   
   private double[] runTrainingAndTesting() throws Exception {
@@ -304,7 +348,9 @@ public class PrivacyClassifier {
       return smoClassifier;
     case RANDOM_FOREST:
       RandomForest rfClassifier = new RandomForest();
-      rfClassifier.setMaxDepth(20);
+      rfClassifier.setOptions(weka.core.Utils.splitOptions(
+          "weka.classifiers.trees.RandomForest -P 100 -I 100 -num-slots 1 -K 0 -M 1.0 -V 0.001 -S 1 -depth 20"));
+      // rfClassifier.setMaxDepth(20);
       rfClassifier.setNumTrees(400);
       return rfClassifier;
     default:
